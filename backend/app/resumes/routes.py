@@ -49,3 +49,20 @@ async def resume_list_get(current_user: UserDb = Depends(get_current_user), db: 
     result = await db.execute(stmt)
     resumes = result.scalars().all()
     return resumes
+
+
+@router.get("/{resume_id}", response_model=ResumeSchema, status_code=200)
+async def resume_get_by_id(resume_id: int, current_user: UserDb = Depends(get_current_user), 
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(Resume).where(Resume.id == resume_id)
+    result = await db.execute(stmt)
+    resume = result.scalar_one_or_none()
+
+    if resume is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found",)
+
+    if resume.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied",)
+
+    return resume
