@@ -31,3 +31,14 @@ class ResumeUpdate(BaseModel):
     experience: Optional[str] = None
     strengths: Optional[str] = None
     additional_info: Optional[str] = None
+
+class ImprovePreviewResponse(BaseModel):
+    resume_id: int
+    improved_content: str
+
+class ImproveCommitRequest(BaseModel):
+    confirm: bool
+
+class ImproveCommitResponse(BaseModel):
+    resume_id: int
+    committed: bool

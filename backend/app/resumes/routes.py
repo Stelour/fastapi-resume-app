@@ -2,10 +2,20 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
+from fastapi.concurrency import run_in_threadpool
 
+from backend.app.models import ResumeImprovement
+from backend.app.resumes.improve import improve_resume
 from backend.app.database import get_db
 from backend.app.models import Resume, User as UserDb
-from backend.app.resumes.schemas import ResumeCreate, ResumeSchema, ResumeUpdate
+from backend.app.resumes.schemas import (
+    ResumeCreate, 
+    ResumeSchema, 
+    ResumeUpdate,
+    ImprovePreviewResponse, 
+    ImproveCommitRequest, 
+    ImproveCommitResponse
+)
 from backend.app.auth.routes import get_current_user
 
 
@@ -138,3 +148,82 @@ async def resume_delete(resume_id: int, current_user: UserDb = Depends(get_curre
     await db.commit()
 
     return
+
+
+@router.post("/resume/{resume_id}/improve/preview", response_model=ImprovePreviewResponse, status_code=200)
+async def improve_preview(
+    resume_id: int,
+    current_user: UserDb = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(Resume).where(Resume.id == resume_id, Resume.user_id == current_user.id)
+    res = await db.execute(stmt)
+    resume = res.scalar_one_or_none()
+
+    if resume is None:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    draft = resume.content or ""
+    if not draft.strip():
+        raise HTTPException(status_code=422, detail="Resume content is empty")
+
+    improved = await run_in_threadpool(improve_resume, draft)
+
+    if not improved:
+        raise HTTPException(status_code=502, detail="AI returned empty response")
+
+    stmt_prev = select(ResumeImprovement).where(
+        ResumeImprovement.user_id == current_user.id,
+        ResumeImprovement.resume_id == resume_id,
+        ResumeImprovement.is_preview == True,
+    )
+    prev_res = await db.execute(stmt_prev)
+    preview_row = prev_res.scalar_one_or_none()
+
+    if preview_row is None:
+        preview_row = ResumeImprovement(
+            resume_id=resume_id,
+            user_id=current_user.id,
+            original_content=draft,
+            improved_content=improved,
+            is_preview=True,
+        )
+        db.add(preview_row)
+    else:
+        preview_row.original_content = draft
+        preview_row.improved_content = improved
+        preview_row.is_preview = True
+
+    await db.commit()
+
+    return ImprovePreviewResponse(resume_id=resume_id, improved_content=improved)
+
+
+@router.post("/resume/{resume_id}/improve/commit")
+async def improve_commit(
+    resume_id: int,
+    body: ImproveCommitRequest,
+    current_user: UserDb = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(ResumeImprovement).where(
+        ResumeImprovement.user_id == current_user.id,
+        ResumeImprovement.resume_id == resume_id,
+        ResumeImprovement.is_preview == True,
+    )
+    result = await db.execute(stmt)
+    preview = result.scalar_one_or_none()
+
+    if preview is None:
+        raise HTTPException(404, "No preview to commit")
+
+    if body.confirm is False:
+        await db.delete(preview)
+        await db.commit()
+        return {"committed": False}
+
+    preview.is_preview = False
+    await db.commit()
+
+    return {"committed": True}
+
