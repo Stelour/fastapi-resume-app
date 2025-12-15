@@ -14,7 +14,8 @@ from backend.app.resumes.schemas import (
     ResumeUpdate,
     ImprovePreviewResponse, 
     ImproveCommitRequest, 
-    ImproveCommitResponse
+    ImproveCommitResponse,
+    ResumeImprovementSchema
 )
 from backend.app.auth.routes import get_current_user
 
@@ -227,3 +228,33 @@ async def improve_commit(
 
     return {"committed": True}
 
+
+@router.get("/resume/{resume_id}/history", response_model=List[ResumeImprovementSchema], status_code=200)
+async def improvements_history(resume_id: int, current_user: UserDb = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    stmt = (
+        select(ResumeImprovement)
+        .where(
+            ResumeImprovement.user_id == current_user.id,
+            ResumeImprovement.resume_id == resume_id,
+            ResumeImprovement.is_preview.is_(False)
+        ).order_by(ResumeImprovement.created_at.desc())
+    )
+    res = await db.execute(stmt)
+    return res.scalars().all()
+
+
+@router.delete("/resume/improvements/{improvement_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_improvement(improvement_id: int, current_user: UserDb = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    stmt = select(ResumeImprovement).where(
+        ResumeImprovement.id == improvement_id,
+        ResumeImprovement.user_id == current_user.id,
+        ResumeImprovement.is_preview.is_(False)
+    )
+    res = await db.execute(stmt)
+    improvement = res.scalar_one_or_none()
+
+    if improvement is None:
+        raise HTTPException(status_code=404, detail="Improvement not found")
+
+    await db.delete(improvement)
+    await db.commit()

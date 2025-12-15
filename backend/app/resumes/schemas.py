@@ -42,3 +42,14 @@ class ImproveCommitRequest(BaseModel):
 class ImproveCommitResponse(BaseModel):
     resume_id: int
     committed: bool
+
+class ResumeImprovementSchema(BaseModel):
+    id: int
+    resume_id: int
+    original_content: str
+    improved_content: str
+    is_preview: bool
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
