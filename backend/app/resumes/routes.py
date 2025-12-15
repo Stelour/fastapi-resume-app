@@ -5,11 +5,27 @@ from typing import List
 
 from backend.app.database import get_db
 from backend.app.models import Resume, User as UserDb
-from backend.app.resumes.schemas import ResumeCreate, ResumeSchema
+from backend.app.resumes.schemas import ResumeCreate, ResumeSchema, ResumeUpdate
 from backend.app.auth.routes import get_current_user
 
 
 router = APIRouter(tags=["resumes"])
+
+
+def build_content(
+    short_profile: str,
+    skills: str,
+    experience: str,
+    strengths: str,
+    additional_info: str,
+):
+    return (
+        f"**Краткий профиль:**\n{short_profile}\n\n"
+        f"**Ключевые навыки:**\n{skills}\n\n"
+        f"**Опыт и проекты:**\n{experience}\n\n"
+        f"**Сильные стороны:**\n{strengths}\n\n"
+        f"**Дополнительная информация:**\n{additional_info}"
+    )
 
 
 @router.post("/", response_model=ResumeSchema, status_code=201)
@@ -18,19 +34,15 @@ async def create_resume(resume_in: ResumeCreate,
     db: AsyncSession = Depends(get_db)
 ):
     
-    cont = (
-        f"**Краткий профиль:**\n{resume_in.short_profile}\n\n"
-        f"**Ключевые навыки:**\n{resume_in.skills}\n\n"
-        f"**Опыт и проекты:**\n{resume_in.experience}\n\n"
-        f"**Сильные стороны:**\n{resume_in.strengths}\n\n"
-        f"**Дополнительная информация:**\n{resume_in.additional_info}"
+    cont = build_content(
+        short_profile=resume_in.short_profile,
+        skills=resume_in.skills,
+        experience=resume_in.experience,
+        strengths=resume_in.strengths,
+        additional_info=resume_in.additional_info,
     )
 
-    new_resume = Resume(
-        title=resume_in.full_name,
-        content=cont,
-        user_id=current_user.id
-    )
+    new_resume = Resume(title=resume_in.full_name, content=cont, user_id=current_user.id)
 
     db.add(new_resume)
     await db.commit()
@@ -66,3 +78,63 @@ async def resume_get_by_id(resume_id: int, current_user: UserDb = Depends(get_cu
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied",)
 
     return resume
+
+
+@router.patch("/{resume_id}", response_model=ResumeSchema, status_code=200)
+async def resume_patch(resume_id: int, payload: ResumeUpdate, current_user: UserDb = Depends(get_current_user), db: AsyncSession = Depends(get_db),):
+    stmt = select(Resume).where(Resume.id == resume_id, Resume.user_id == current_user.id)
+    result = await db.execute(stmt)
+    resume = result.scalar_one_or_none()
+
+    if resume is None:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    data = payload.model_dump(exclude_unset=True)
+    if not data:
+        raise HTTPException(status_code=422, detail="No fields provided")
+
+    if "full_name" in data and "title" not in data:
+        data["title"] = data.pop("full_name")
+
+    form_keys = {"short_profile", "skills", "experience", "strengths", "additional_info"}
+    if form_keys.intersection(data.keys()):
+        missing = [k for k in form_keys if k not in data]
+        if missing:
+            raise HTTPException(
+                status_code=422,
+                detail=f"If you update via form fields, send all of them: missing {missing}",
+            )
+
+        data["content"] = build_content(
+            short_profile=data["short_profile"],
+            skills=data["skills"],
+            experience=data["experience"],
+            strengths=data["strengths"],
+            additional_info=data["additional_info"],
+        )
+        for k in form_keys:
+            data.pop(k, None)
+
+    for k in ("title", "content"):
+        if k in data:
+            setattr(resume, k, data[k])
+
+    await db.commit()
+    await db.refresh(resume)
+    return resume
+
+
+@router.delete("/{resume_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def resume_delete(resume_id: int, current_user: UserDb = Depends(get_current_user), 
+    db: AsyncSession = Depends(get_db),):
+    stmt = select(Resume).where(Resume.id == resume_id, Resume.user_id == current_user.id,)
+    result = await db.execute(stmt)
+    resume = result.scalar_one_or_none()
+
+    if resume is None:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    await db.delete(resume)
+    await db.commit()
+
+    return

@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
+from typing import Optional
 
 class ResumeCreate(BaseModel):
     full_name: str
@@ -17,3 +18,16 @@ class ResumeSchema(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+class ResumeUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: Optional[str] = None
+    content: Optional[str] = None
+
+    full_name: Optional[str] = None
+    short_profile: Optional[str] = None
+    skills: Optional[str] = None
+    experience: Optional[str] = None
+    strengths: Optional[str] = None
+    additional_info: Optional[str] = None
