@@ -5,7 +5,7 @@ import jwt
 from dotenv import load_dotenv
 
 from fastapi import APIRouter, HTTPException, Depends, status
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
@@ -40,8 +40,7 @@ class UserSchema(BaseModel):
     username: str
     email: EmailStr
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class RegisterRequest(BaseModel):
     email: EmailStr
