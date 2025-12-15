@@ -39,3 +39,13 @@ async def create_resume(resume_in: ResumeCreate,
     return new_resume
 
 
+@router.get("/", response_model=List[ResumeSchema], status_code=200)
+async def resume_list_get(current_user: UserDb = Depends(get_current_user), db: AsyncSession = Depends(get_db),):
+    stmt = (
+        select(Resume)
+        .where(Resume.user_id == current_user.id)
+        .order_by(Resume.created_at.desc())
+    )
+    result = await db.execute(stmt)
+    resumes = result.scalars().all()
+    return resumes
