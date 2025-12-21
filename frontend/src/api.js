@@ -1,7 +1,7 @@
 const API_URL = "http://localhost:8000";
 
 export async function registerUser(data) {
-  const response = await fetch(`${API_URL}/register`, {
+  const response = await fetch(`${API_URL}/auth/register`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -22,7 +22,7 @@ export async function loginUser(email, password) {
   formData.append("username", email);
   formData.append("password", password);
 
-  const response = await fetch(`${API_URL}/login`, {
+  const response = await fetch(`${API_URL}/auth/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -41,7 +41,7 @@ export async function loginUser(email, password) {
 export async function createResume(resumeData) {
   const token = localStorage.getItem("token");
 
-  const response = await fetch(`${API_URL}/resume`, {
+  const response = await fetch(`${API_URL}/resumes/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -60,7 +60,7 @@ export async function createResume(resumeData) {
 export async function getResumes() {
   const token = localStorage.getItem("token");
 
-  const response = await fetch(`${API_URL}/resume`, {
+  const response = await fetch(`${API_URL}/resumes/`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -83,7 +83,7 @@ function authHeaders(json = false) {
 
 // GET /resume/{id}
 export async function getResumeById(id) {
-  const res = await fetch(`${API_URL}/resume/${id}`, {
+  const res = await fetch(`${API_URL}/resumes/${id}`, {
     headers: authHeaders(),
   });
 
@@ -93,7 +93,7 @@ export async function getResumeById(id) {
 
 // PATCH /resume/{id}
 export async function updateResume(id, data) {
-  const res = await fetch(`${API_URL}/resume/${id}`, {
+  const res = await fetch(`${API_URL}/resumes/${id}`, {
     method: "PATCH",
     headers: authHeaders(true),
     body: JSON.stringify(data),
@@ -105,7 +105,7 @@ export async function updateResume(id, data) {
 
 // DELETE /resume/{id}
 export async function deleteResume(id) {
-  const res = await fetch(`${API_URL}/resume/${id}`, {
+  const res = await fetch(`${API_URL}/resumes/${id}`, {
     method: "DELETE",
     headers: authHeaders(),
   });
@@ -114,7 +114,7 @@ export async function deleteResume(id) {
 }
 
 export async function improveResumePreview(id) {
-  const res = await fetch(`${API_URL}/resume/${id}/improve/preview`, {
+  const res = await fetch(`${API_URL}/resumes/${id}/improve/preview`, {
     method: "POST",
     headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
   });
@@ -123,14 +123,11 @@ export async function improveResumePreview(id) {
 }
 
 // POST /resume/{id}/improve/commit
-export async function improveResumeCommit(id, commit) {
-  const res = await fetch(`${API_URL}/resume/${id}/improve/commit`, {
+export async function improveResumeCommit(id, confirm) {
+  const res = await fetch(`${API_URL}/resumes/${id}/improve/commit`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem("token")}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ commit }), // 0 или 1
+    headers: authHeaders(true),
+    body: JSON.stringify({ confirm: !!confirm }),
   });
   if (!res.ok) throw new Error("Ошибка commit улучшения");
   return res.json();
@@ -138,7 +135,7 @@ export async function improveResumeCommit(id, commit) {
 
 // GET /resume/{id}/history
 export async function getResumeHistory(id) {
-  const res = await fetch(`${API_URL}/resume/${id}/history`, {
+  const res = await fetch(`${API_URL}/resumes/${id}/history`, {
     headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
   });
   if (!res.ok) throw new Error("Ошибка получения истории");
@@ -146,10 +143,21 @@ export async function getResumeHistory(id) {
 }
 
 export async function deleteImprovement(improvement_id) {
-  const res = await fetch(`${API_URL}/improvements/${improvement_id}`, {
+  const res = await fetch(`${API_URL}/resumes/improvements/${improvement_id}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
   });
 
   if (!res.ok) throw new Error("Ошибка удаления улучшения");
+}
+
+export async function getImprovePreview(id) {
+  const res = await fetch(`${API_URL}/resumes/${id}/improve/preview`, {
+    headers: authHeaders(),
+  });
+
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error("Ошибка получения preview");
+
+  return res.json();
 }

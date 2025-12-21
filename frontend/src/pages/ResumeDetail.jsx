@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import "../styles/resume.css";
+
 import {
   getResumeById,
   updateResume,
@@ -7,174 +9,307 @@ import {
   improveResumePreview,
   improveResumeCommit,
   getResumeHistory,
+  deleteImprovement,
+  getImprovePreview
 } from "../api";
-import "../styles/resume.css";
+
+function parseContent(content = "") {
+  const sections = {
+    short_profile: "",
+    skills: "",
+    experience: "",
+    strengths: "",
+    additional_info: "",
+  };
+
+  const map = [
+    { key: "short_profile", title: "Краткий профиль" },
+    { key: "skills", title: "Ключевые навыки" },
+    { key: "experience", title: "Опыт и проекты" },
+    { key: "strengths", title: "Сильные стороны" },
+    { key: "additional_info", title: "Дополнительная информация" },
+  ];
+
+  for (let i = 0; i < map.length; i++) {
+    const cur = map[i];
+    const next = map[i + 1];
+
+    const startMarker = `**${cur.title}:**`;
+    const start = content.indexOf(startMarker);
+    if (start === -1) continue;
+
+    const afterStart = content.slice(start + startMarker.length);
+    const end = next ? afterStart.indexOf(`**${next.title}:**`) : -1;
+
+    const chunk = end === -1 ? afterStart : afterStart.slice(0, end);
+    sections[cur.key] = chunk.replace(/^\s*[\r\n]+/, "").trim();
+  }
+
+  return sections;
+}
 
 export default function ResumeDetail() {
   const { resume_id } = useParams();
   const navigate = useNavigate();
 
-  const [resume, setResume] = useState(null);
-  const [improvedResume, setImprovedResume] = useState(null);
-  const [history, setHistory] = useState([]);
   const [message, setMessage] = useState("");
-  const [isEditing, setIsEditing] = useState(false);
+
+  const [fio, setFio] = useState("");
+  const [form, setForm] = useState({
+    short_profile: "",
+    skills: "",
+    experience: "",
+    strengths: "",
+    additional_info: "",
+  });
+
+  const [previewText, setPreviewText] = useState("");
+  const [hasPreview, setHasPreview] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const loadAll = async () => {
+    setMessage("");
+    setLoading(true);
+
+    try {
+      const r = await getResumeById(resume_id);
+      setFio(r.title || "");
+      setForm(parseContent(r.content || ""));
+
+      try {
+        const p = await getImprovePreview(resume_id);
+        if (p?.improved_content) {
+          setPreviewText(p.improved_content);
+          setHasPreview(true);
+        } else {
+          setPreviewText("");
+          setHasPreview(false);
+        }
+      } catch (e) {
+        setPreviewText("");
+        setHasPreview(false);
+      }
+
+      const h = await getResumeHistory(resume_id);
+      setHistory(Array.isArray(h) ? h : []);
+    } catch (e) {
+      setMessage(e?.message || "Ошибка загрузки резюме");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    loadResume();
-    loadHistory();
-  }, []);
+    loadAll();
+  }, [resume_id]);
 
-  const loadResume = async () => {
+  const onChange = (e) => {
+    const { name, value } = e.target;
+    setForm((p) => ({ ...p, [name]: value }));
+  };
+
+  const onSave = async () => {
+    setMessage("");
     try {
-      const data = await getResumeById(resume_id);
-      setResume(data);
-    } catch {
-      setMessage("Резюме не найдено или нет доступа");
+      await updateResume(resume_id, {
+        full_name: fio,
+        short_profile: form.short_profile,
+        skills: form.skills,
+        experience: form.experience,
+        strengths: form.strengths,
+        additional_info: form.additional_info,
+      });
+
+      setMessage("Сохранено");
+      await loadAll();
+    } catch (e) {
+      setMessage(e?.message || "Ошибка сохранения");
     }
   };
 
-  const loadHistory = async () => {
-    try {
-      const data = await getResumeHistory(resume_id);
-      setHistory(data);
-    } catch {
-      setMessage("Не удалось загрузить историю");
-    }
-  };
+  const onDelete = async () => {
+    if (!confirm("Удалить резюме?")) return;
+    setMessage("");
 
-  const handleChange = (e) => {
-    setResume({ ...resume, [e.target.name]: e.target.value });
-  };
-
-  const handleUpdate = async () => {
-    try {
-      await updateResume(resume_id, resume);
-      setMessage("Резюме обновлено");
-      setIsEditing(false);
-      loadHistory();
-    } catch {
-      setMessage("Ошибка обновления");
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!window.confirm("Удалить резюме?")) return;
     try {
       await deleteResume(resume_id);
-      navigate("/resume");
-    } catch {
-      setMessage("Ошибка удаления");
+      navigate("/resumes");
+    } catch (e) {
+      setMessage(e?.message || "Ошибка удаления резюме");
     }
   };
 
-  // ===== Работа с улучшением =====
-  const handleImprovePreview = async () => {
-    try {
-      const data = await improveResumePreview(resume_id);
-      setImprovedResume(data);
-    } catch {
-      setMessage("Ошибка при улучшении резюме");
-    }
-  };
-
-  const handleImproveCommit = async (commit) => {
-    try {
-      await improveResumeCommit(resume_id, commit ? 1 : 0);
-      setMessage(commit ? "Резюме сохранено" : "Изменения отклонены");
-      setImprovedResume(null);
-      loadResume();
-      loadHistory();
-    } catch {
-      setMessage("Ошибка при commit улучшения");
-    }
-  };
-
-  const handleDeleteImprovement = async (id) => {
-    if (!window.confirm("Удалить это улучшение?")) return;
+  const onGeneratePreview = async () => {
+    setMessage("");
+    setPreviewLoading(true);
 
     try {
-      await deleteImprovement(id);
-      setMessage("Улучшение удалено");
-      loadHistory(); // обновляем историю после удаления
-    } catch {
-      setMessage("Ошибка удаления улучшения");
+      const res = await improveResumePreview(resume_id);
+      setPreviewText(res?.improved_content || "");
+      setHasPreview(true);
+      setMessage("Preview готов");
+    } catch (e) {
+      setMessage(e?.message || "Ошибка улучшения (preview)");
+    } finally {
+      setPreviewLoading(false);
     }
   };
 
-  if (!resume) return <p style={{ textAlign: "center" }}>{message}</p>;
+  const onCommitPreview = async (confirmValue) => {
+    setMessage("");
+    try {
+      await improveResumeCommit(resume_id, confirmValue);
+      await loadAll();
+      setMessage(confirmValue ? "Улучшение сохранено" : "Улучшение отменено");
+    } catch (e) {
+      setMessage(e?.message || "Ошибка commit");
+    }
+  };
+
+  const onDeleteImprovement = async (improvementId) => {
+    if (!confirm("Удалить улучшение?")) return;
+    setMessage("");
+
+    try {
+      await deleteImprovement(improvementId);
+      await loadAll();
+    } catch (e) {
+      setMessage(e?.message || "Ошибка удаления улучшения");
+    }
+  };
 
   return (
     <div className="resume-container">
       <h2>Резюме #{resume_id}</h2>
 
-      <div className="resume-form">
-        {Object.entries(resume).map(([key, value]) =>
-          key === "id" ? null : (
-            <textarea
-              key={key}
-              name={key}
-              value={value || ""}
-              onChange={handleChange}
-              disabled={!isEditing}
-            />
-          )
-        )}
-      </div>
-
-      <div style={{ marginTop: 20, display: "flex", gap: 10 }}>
-        {!isEditing ? (
-          <button onClick={() => setIsEditing(true)}>Редактировать</button>
-        ) : (
-          <button onClick={handleUpdate}>Сохранить</button>
-        )}
-
-        <button onClick={handleDelete} style={{ background: "#e53e3e" }}>
-          Удалить
-        </button>
-
-        <button onClick={handleImprovePreview} style={{ background: "#38a169" }}>
-          Улучшить (Preview)
-        </button>
-      </div>
-
-      {improvedResume && (
-        <div style={{ marginTop: 20, border: "1px solid #38a169", padding: 15, borderRadius: 8 }}>
-          <h3>Предварительное улучшение</h3>
-          {Object.entries(improvedResume).map(([key, value]) =>
-            key === "id" ? null : (
-              <p key={key}><strong>{key}:</strong> {value}</p>
-            )
-          )}
-          <div style={{ marginTop: 10, display: "flex", gap: 10 }}>
-            <button onClick={() => handleImproveCommit(1)} style={{ background: "#38a169" }}>
-              Сохранить
-            </button>
-            <button onClick={() => handleImproveCommit(0)} style={{ background: "#e53e3e" }}>
-              Отклонить
-            </button>
-          </div>
-        </div>
-      )}
-
       {message && <p className="auth-message">{message}</p>}
+      {loading && <p>Загрузка...</p>}
 
-      <div className="resume-list" style={{ marginTop: 40 }}>
+      <div className="resume-form">
+        <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>
+          ФИО
+        </label>
+        <input
+          value={fio}
+          onChange={(e) => setFio(e.target.value)}
+          placeholder="Например: Олег Олегович"
+          style={{ maxWidth: 420 }}
+        />
+
+        <label style={{ display: "block", marginTop: 14, marginBottom: 6, fontWeight: 600 }}>
+          Краткий профиль
+        </label>
+        <textarea
+          name="short_profile"
+          value={form.short_profile}
+          onChange={onChange}
+          rows={3}
+          placeholder="Например: Java Backend Developer"
+        />
+
+        <label style={{ display: "block", marginTop: 14, marginBottom: 6, fontWeight: 600 }}>
+          Ключевые навыки
+        </label>
+        <textarea
+          name="skills"
+          value={form.skills}
+          onChange={onChange}
+          rows={4}
+          placeholder="Например: Spring, PostgreSQL, Docker..."
+        />
+
+        <label style={{ display: "block", marginTop: 14, marginBottom: 6, fontWeight: 600 }}>
+          Опыт и проекты
+        </label>
+        <textarea
+          name="experience"
+          value={form.experience}
+          onChange={onChange}
+          rows={6}
+          placeholder="Где работал, что делал, какие проекты"
+        />
+
+        <label style={{ display: "block", marginTop: 14, marginBottom: 6, fontWeight: 600 }}>
+          Сильные стороны
+        </label>
+        <textarea
+          name="strengths"
+          value={form.strengths}
+          onChange={onChange}
+          rows={4}
+          placeholder="Например: ответственность, коммуникация..."
+        />
+
+        <label style={{ display: "block", marginTop: 14, marginBottom: 6, fontWeight: 600 }}>
+          Дополнительная информация
+        </label>
+        <textarea
+          name="additional_info"
+          value={form.additional_info}
+          onChange={onChange}
+          rows={3}
+          placeholder="Город, язык, ссылки, прочее"
+        />
+
+        <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+          <button type="button" onClick={onSave}>Сохранить</button>
+          <button
+            type="button"
+            onClick={onDelete}
+            style={{ background: "#d9534f" }}
+          >
+            Удалить
+          </button>
+          <button
+            type="button"
+            onClick={onGeneratePreview}
+            disabled={previewLoading}
+            style={{
+              background: previewLoading ? "#9e9e9e" : "#4caf50",
+              cursor: previewLoading ? "not-allowed" : "pointer",
+              opacity: previewLoading ? 0.7 : 1,
+            }}
+          >
+            {previewLoading ? "Улучшаю..." : "Улучшить (Preview)"}
+          </button>
+        </div>
+      </div>
+
+      {}
+      <div style={{ marginTop: 28 }}>
         <h2>История изменений</h2>
+
+        {hasPreview && (
+          <div className="resume-card" style={{ border: "2px solid #4caf50", marginBottom: 14 }}>
+            <h3 style={{ marginTop: 0 }}>Preview улучшения</h3>
+            <pre style={{ whiteSpace: "pre-wrap", marginBottom: 12 }}>
+              {previewText}
+            </pre>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button type="button" onClick={() => onCommitPreview(true)}>
+                Сохранить улучшение
+              </button>
+              <button type="button" onClick={() => onCommitPreview(false)}>
+                Отменить
+              </button>
+            </div>
+          </div>
+        )}
+
         {history.length === 0 ? (
           <p>История пуста</p>
         ) : (
-          history.map((item, idx) => (
-            <div key={idx} className="resume-card">
-              {Object.entries(item).map(([key, value]) =>
-                key === "id" ? null : (
-                  <p key={key}><strong>{key}:</strong> {value}</p>
-                )
-              )}
-              <button
-                onClick={() => handleDeleteImprovement(item.id)}
-                style={{ background: "#e53e3e", marginTop: 5 }}
-              >
+          history.map((h) => (
+            <div key={h.id} className="resume-card" style={{ marginBottom: 12 }}>
+              <p style={{ marginTop: 0 }}>
+                <b>Улучшение #{h.id}</b>
+              </p>
+              <pre style={{ whiteSpace: "pre-wrap" }}>{h.improved_content}</pre>
+              <button type="button" onClick={() => onDeleteImprovement(h.id)}>
                 Удалить улучшение
               </button>
             </div>

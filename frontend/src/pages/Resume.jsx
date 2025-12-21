@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 
 export default function Resume() {
   const [formData, setFormData] = useState({
+    full_name: "",
     short_profile: "",
     skills: "",
     experience: "",
@@ -40,6 +41,7 @@ export default function Resume() {
       await createResume(formData);
       setMessage("Резюме успешно создано");
       setFormData({
+        full_name: "",
         short_profile: "",
         skills: "",
         experience: "",
@@ -57,6 +59,14 @@ export default function Resume() {
       <h2>Создание резюме</h2>
 
       <form className="resume-form" onSubmit={handleSubmit}>
+        <input
+          name="full_name"
+          placeholder="ФИО"
+          value={formData.full_name}
+          onChange={handleChange}
+          required
+        />
+
         <textarea
           name="short_profile"
           placeholder="Краткий профиль"
@@ -104,14 +114,15 @@ export default function Resume() {
       <div className="resume-list">
         <h2>Все резюме</h2>
 
-        {resumes.map((resume, index) => (
-          <Link to={`/resume/${resume.id}`}>
-            <div key={index} className="resume-card">
-              <p><span className="resume-label">Профиль:</span> {resume.short_profile}</p>
-              <p><span className="resume-label">Навыки:</span> {resume.skills}</p>
-              <p><span className="resume-label">Опыт:</span> {resume.experience}</p>
-              <p><span className="resume-label">Сильные стороны:</span> {resume.strengths}</p>
-              <p><span className="resume-label">Дополнительно:</span> {resume.additional_info}</p>
+        {resumes.map((resume) => (
+          <Link key={resume.id} to={`/resumes/${resume.id}`}>
+            <div className="resume-card">
+              <p>
+                <span className="resume-label">ID:</span> {resume.id}
+              </p>
+              <p>
+                <span className="resume-label">Профиль:</span> {resume.title}
+              </p>
             </div>
           </Link>
         ))}
