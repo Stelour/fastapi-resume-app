@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Any
 
 class ResumeCreate(BaseModel):
     full_name: str
@@ -13,10 +13,10 @@ class ResumeCreate(BaseModel):
 class ResumeSchema(BaseModel):
     id: int
     title: str
-    content: str | None
+    content: dict[str, Any]
     created_at: datetime
     updated_at: datetime
-
+    
     model_config = ConfigDict(from_attributes=True)
 
 class ResumeUpdate(BaseModel):
@@ -34,7 +34,7 @@ class ResumeUpdate(BaseModel):
 
 class ImprovePreviewResponse(BaseModel):
     resume_id: int
-    improved_content: str
+    improved_content: dict[str, Any]
 
 class ImproveCommitRequest(BaseModel):
     confirm: bool
@@ -46,10 +46,10 @@ class ImproveCommitResponse(BaseModel):
 class ResumeImprovementSchema(BaseModel):
     id: int
     resume_id: int
-    original_content: str
-    improved_content: str
+    original_content: dict[str, Any]
+    improved_content: dict[str, Any]
     is_preview: bool
     created_at: datetime
     updated_at: datetime
-
+    
     model_config = ConfigDict(from_attributes=True)
