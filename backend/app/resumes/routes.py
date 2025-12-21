@@ -151,7 +151,7 @@ async def resume_delete(resume_id: int, current_user: UserDb = Depends(get_curre
     return
 
 
-@router.post("/resume/{resume_id}/improve/preview", response_model=ImprovePreviewResponse, status_code=200)
+@router.post("/{resume_id}/improve/preview", response_model=ImprovePreviewResponse, status_code=200)
 async def improve_preview(
     resume_id: int,
     current_user: UserDb = Depends(get_current_user),
@@ -200,7 +200,7 @@ async def improve_preview(
     return ImprovePreviewResponse(resume_id=resume_id, improved_content=improved)
 
 
-@router.post("/resume/{resume_id}/improve/commit")
+@router.post("/{resume_id}/improve/commit", response_model=ImproveCommitResponse, status_code=200)
 async def improve_commit(
     resume_id: int,
     body: ImproveCommitRequest,
@@ -226,10 +226,10 @@ async def improve_commit(
     preview.is_preview = False
     await db.commit()
 
-    return {"committed": True}
+    return {"resume_id": resume_id, "committed": True/False}
 
 
-@router.get("/resume/{resume_id}/history", response_model=List[ResumeImprovementSchema], status_code=200)
+@router.get("/{resume_id}/history", response_model=List[ResumeImprovementSchema], status_code=200)
 async def improvements_history(resume_id: int, current_user: UserDb = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     stmt = (
         select(ResumeImprovement)
@@ -243,7 +243,7 @@ async def improvements_history(resume_id: int, current_user: UserDb = Depends(ge
     return res.scalars().all()
 
 
-@router.delete("/resume/improvements/{improvement_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/improvements/{improvement_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_improvement(improvement_id: int, current_user: UserDb = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     stmt = select(ResumeImprovement).where(
         ResumeImprovement.id == improvement_id,
