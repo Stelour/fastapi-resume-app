@@ -1,0 +1,75 @@
+.resume-container {
+  max-width: 900px;
+  width: 60%;
+  margin: 40px auto;
+  background: #fff;
+  padding: 30px;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+.resume-container h2 {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.resume-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.resume-form textarea {
+  grid-column: span 2;
+  min-height: 90px;
+  resize: vertical;
+  padding: 10px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+.resume-form textarea:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.resume-form button {
+  grid-column: span 2;
+  padding: 12px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.resume-form button:hover {
+  background: #5a67d8;
+}
+
+.resume-list {
+  margin-top: 35px;
+}
+
+.resume-card {
+  background: #f7f8fc;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 15px;
+}
+
+.resume-card h4 {
+  margin-bottom: 8px;
+  color: #444;
+}
+
+.resume-card p {
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+.resume-label {
+  font-weight: bold;
+}
