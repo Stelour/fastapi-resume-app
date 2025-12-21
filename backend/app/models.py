@@ -1,5 +1,6 @@
 from sqlalchemy import String, Text, ForeignKey, func, Boolean, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime
 from .database import Base
 
@@ -23,7 +24,7 @@ class Resume(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     title: Mapped[str] = mapped_column(String, nullable=False)
-    content: Mapped[str] = mapped_column(Text, nullable=True)
+    content: Mapped[dict] = mapped_column(JSONB, nullable=False)
     
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
     
@@ -42,8 +43,8 @@ class ResumeImprovement(Base):
     resume_id: Mapped[int] = mapped_column(ForeignKey("resumes.id", ondelete="CASCADE"), index=True, nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
 
-    original_content: Mapped[str] = mapped_column(Text, nullable=False)
-    improved_content: Mapped[str] = mapped_column(Text, nullable=False)
+    original_content: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    improved_content: Mapped[dict] = mapped_column(JSONB, nullable=False)
     is_preview: Mapped[bool] = mapped_column(default=True, nullable=False, index=True)
 
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
