@@ -31,11 +31,11 @@ def build_content(
     additional_info: str,
 ):
     return (
-        f"**Краткий профиль:**\n{short_profile}\n\n"
-        f"**Ключевые навыки:**\n{skills}\n\n"
-        f"**Опыт и проекты:**\n{experience}\n\n"
-        f"**Сильные стороны:**\n{strengths}\n\n"
-        f"**Дополнительная информация:**\n{additional_info}"
+        f"Краткий профиль:\n{short_profile}\n\n"
+        f"Ключевые навыки:\n{skills}\n\n"
+        f"Опыт и проекты:\n{experience}\n\n"
+        f"Сильные стороны:\n{strengths}\n\n"
+        f"Дополнительная информация:\n{additional_info}"
     )
 
 
@@ -53,7 +53,7 @@ async def create_resume(resume_in: ResumeCreate,
         additional_info=resume_in.additional_info,
     )
 
-    new_resume = Resume(title=resume_in.full_name, content=cont, user_id=current_user.id)
+    new_resume = Resume(title=resume_in.short_profile, content=cont, user_id=current_user.id)
 
     db.add(new_resume)
     await db.commit()
@@ -200,6 +200,24 @@ async def improve_preview(
     return ImprovePreviewResponse(resume_id=resume_id, improved_content=improved)
 
 
+@router.get("/{resume_id}/improve/preview", response_model=ImprovePreviewResponse, status_code=200)
+async def get_existing_preview(resume_id: int, current_user: UserDb = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    stmt = select(ResumeImprovement).where(
+        ResumeImprovement.user_id == current_user.id,
+        ResumeImprovement.resume_id == resume_id,
+        ResumeImprovement.is_preview.is_(True),
+    )
+    res = await db.execute(stmt)
+    preview = res.scalar_one_or_none()
+
+    if preview is None:
+        raise HTTPException(status_code=404, detail="No preview")
+
+    return ImprovePreviewResponse(resume_id=resume_id, improved_content=preview.improved_content)
+
+
 @router.post("/{resume_id}/improve/commit", response_model=ImproveCommitResponse, status_code=200)
 async def improve_commit(
     resume_id: int,
@@ -221,12 +239,12 @@ async def improve_commit(
     if body.confirm is False:
         await db.delete(preview)
         await db.commit()
-        return {"committed": False}
+        return {"resume_id": resume_id, "committed": False}
 
     preview.is_preview = False
     await db.commit()
 
-    return {"resume_id": resume_id, "committed": True/False}
+    return {"resume_id": resume_id, "committed": True}
 
 
 @router.get("/{resume_id}/history", response_model=List[ResumeImprovementSchema], status_code=200)
