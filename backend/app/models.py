@@ -15,6 +15,7 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     resumes: Mapped[list["Resume"]] = relationship(back_populates="owner")
+    improvements: Mapped[list["ResumeImprovement"]] = relationship(back_populates="user")
 
 
 class Resume(Base):
@@ -24,12 +25,13 @@ class Resume(Base):
     title: Mapped[str] = mapped_column(String, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=True)
     
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
     
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
     owner: Mapped["User"] = relationship(back_populates="resumes")
+    improvements: Mapped[list["ResumeImprovement"]] = relationship(back_populates="resume", passive_deletes=True)
 
 
 class ResumeImprovement(Base):
@@ -37,11 +39,15 @@ class ResumeImprovement(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
 
-    resume_id: Mapped[int] = mapped_column(index=True, nullable=False)
-    user_id: Mapped[int] = mapped_column(index=True, nullable=False)
+    resume_id: Mapped[int] = mapped_column(ForeignKey("resumes.id", ondelete="CASCADE"), index=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+
     original_content: Mapped[str] = mapped_column(Text, nullable=False)
     improved_content: Mapped[str] = mapped_column(Text, nullable=False)
     is_preview: Mapped[bool] = mapped_column(default=True, nullable=False, index=True)
 
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+
+    resume: Mapped["Resume"] = relationship(back_populates="improvements")
+    user: Mapped["User"] = relationship(back_populates="improvements")
