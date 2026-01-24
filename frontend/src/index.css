@@ -1,11 +1,9 @@
-/* ===== CSS Reset (минимальный) ===== */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-/* ===== Базовые стили документа ===== */
 html,
 body {
   width: 100%;
@@ -18,7 +16,6 @@ body {
   color: #333;
 }
 
-/* ===== Корневой элемент React ===== */
 #root {
   min-height: 100vh;
   width: 100%;
@@ -27,7 +24,6 @@ body {
   align-items: center;
 }
 
-/* ===== Общие элементы ===== */
 button {
   font-family: inherit;
 }
@@ -37,7 +33,6 @@ textarea {
   font-family: inherit;
 }
 
-/* ===== Ссылки ===== */
 a {
   color: inherit;
   text-decoration: none;

@@ -48,7 +48,7 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=8, max_length=32)
 
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256", "bcrypt"], deprecated="auto")
 
 def hash_password(password):
     return pwd_context.hash(password)
