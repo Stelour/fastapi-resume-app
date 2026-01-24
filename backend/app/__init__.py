@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from .main.routes import router as base_router
 from .auth.routes import router as auth_router
@@ -22,6 +23,12 @@ def create_app():
     app.include_router(base_router)
     app.include_router(auth_router, prefix="/auth")
     app.include_router(resumes_router, prefix="/resumes")
+
+    Instrumentator(excluded_handlers=["/metrics"]).instrument(app).expose(
+        app,
+        endpoint="/metrics",
+        include_in_schema=False,
+    )
 
     return app
 
