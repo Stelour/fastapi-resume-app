@@ -3,7 +3,7 @@ import json
 from typing import Any, Dict
 
 from dotenv import load_dotenv
-import google.generativeai as genai
+from google import genai
 
 
 REQUIRED_KEYS = (
@@ -50,8 +50,7 @@ def improve_resume(draft: Dict[str, Any]) -> Dict[str, str]:
     if not isinstance(draft, dict) or not draft:
         raise ValueError("draft must be a non-empty dict")
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("models/gemini-2.5-flash")
+    client = genai.Client(api_key=api_key)
 
     draft_json = json.dumps(draft, ensure_ascii=False)
 
@@ -91,7 +90,10 @@ def improve_resume(draft: Dict[str, Any]) -> Dict[str, str]:
 {draft_json}
 """.strip()
 
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+    )
 
     text = (response.text or "").strip() if response else ""
     if not text:
