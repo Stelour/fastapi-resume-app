@@ -11,3 +11,4 @@ env/
 
 pgdata/
 postgres_data/
+*.lua
